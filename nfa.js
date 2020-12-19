@@ -127,7 +127,63 @@ class NFA {
             throw "Error! Make sure all open parentheses have closing parentheses and all *'s follow characters \
             \nor groups for which you want to allow repetitions\n\n"
         }
-        return [queryElements, openParentheses]
+        return queryElements//, openParentheses]
+    }
+
+    generateGroups (queryArr) {
+        let group = []
+        for (let i = 0; i < queryArr.length; i++) {
+            if (queryArr[i] === "(") {
+                group.push(this.generateGroups(queryArr.slice(i + 1)))
+                i += group[group.length - 1].length + 2
+            }
+            if (queryArr[i] === ")") return group
+            if (i !== queryArr.length) group.push(queryArr[i])
+        }
+        return group
+    }
+
+    findRepeatValues (groups) {
+        let repeatValuesByIndex = []
+        for (let i = 0; i < groups.length; i++) {
+            if (i < groups.length - 1 && groups[i + 1] === "*") {
+                repeatValuesByIndex.push(true)
+                groups = groups.slice(0, i + 1).concat(groups.slice(i + 2))
+            } else {
+                repeatValuesByIndex.push(false)
+            }
+        }
+        return [groups, repeatValuesByIndex]
+    }
+
+    traverse (groups, currentState) {
+        let history = []
+        let returnArr = this.findRepeatValues(groups)
+        let newGroups = returnArr[0]
+        let repeatValues = returnArr[1]
+        if (currentState === null) throw "This string is NOT accepted"
+        for (let i = 0; i < newGroups.length; i++) {
+            history.push(currentState)
+            if (typeof newGroups[i] === "object") this.traverse(newGroups[i], currentState)
+            else { 
+                switch (newGroups[i]) {
+                    case "0": 
+                        if (currentState.zero === {}) throw "This string is NOT accepted"
+                        Object.values(currentState.zero).forEach(x => { history.push(x.stateName); this.traverse(newGroups, x) })
+                        break
+                    case "1": 
+                        if (currentState.one === {}) throw "This string is NOT accepted"
+                        Object.values(currentState.one).forEach(x => { history.push(x.stateName); this.traverse(newGroups, x) })
+                        break
+                    case "lambda": 
+                        if (currentState.lambda === {}) throw "This string is NOT accepted"
+                        Object.values(currentState.lambda).forEach(x => { history.push(x.stateName); this.traverse(newGroups, x) })
+                        break
+                }
+            }  
+        }
+        console.log(history)
+        return history
     }
 
     handleQueryEvaluation (query) {
@@ -137,18 +193,13 @@ class NFA {
         // take query and use validateFunction() 
         // store polished query as an array split up
         let validation = this.validateAndFormat(query)
-        let array = validation[0]
-        let parenthesesPairs = validation[1]
-        // find groups 
-        let newArr = []
-        console.log(parenthesesPairs)
-        for (let i = 0; i < array.length; i++) {
-            
-        }
-
-        // Create 2D array called history to keep track of 'path' to end state
-        let pathHistory = []
-
+        let itemArray = validation//[0]
+        //let groups = validation[1]
+        let groupOpen = false
+        // find groups (nd array)
+        let groups = this.generateGroups(itemArray)
+        // Create an nd array called history to keep track of 'path' to end state
+        this.traverse(groups, this.startState)
     }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,3 +296,4 @@ async function runSimulation () {
 }
 
 runSimulation()
+
